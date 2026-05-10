@@ -1,0 +1,25 @@
+services:
+  daimon:
+    build: .
+    image: daimon-credential-poc
+    container_name: daimon-cred-test
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    cap_add:
+      # SETUID/SETGID: gosu needs these for root→agent privilege drop
+      - SETUID
+      - SETGID
+      # CHOWN/FOWNER: needed to secure the secret file at startup  
+      - CHOWN
+      - FOWNER
+    secrets:
+      - gh_token
+    # Keep container running for testing  
+    stdin_open: true
+    tty: true
+
+secrets:
+  gh_token:
+    file: ./test-token.txt
