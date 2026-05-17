@@ -552,6 +552,8 @@ DEFAULT_CONFIG = {
         # remains available as a tool regardless of this setting — the routing
         # only controls how inbound user images are presented.
         "image_input_mode": "auto",
+        "edge_mode": False,
+        "local_context_budget": 4000,
         "disabled_toolsets": [],
     },
     

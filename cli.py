@@ -330,6 +330,8 @@ def load_cli_config() -> Dict[str, Any]:
         },
         "agent": {
             "max_turns": 90,  # Default max tool-calling iterations (shared with subagents)
+            "edge_mode": False,
+            "local_context_budget": 4000,
             "verbose": False,
             "system_prompt": "",
             "prefill_messages_file": "",
@@ -2522,6 +2524,8 @@ class HermesCLI:
         checkpoints: bool = False,
         pass_session_id: bool = False,
         ignore_rules: bool = False,
+        edge_mode: Optional[bool] = None,
+        local_context_budget: Optional[int] = None,
     ):
         """
         Initialize the Hermes CLI.
@@ -2680,7 +2684,24 @@ class HermesCLI:
                 self.max_turns = 90
         else:
             self.max_turns = 90
-        
+
+        if edge_mode is not None:
+            self.edge_mode = bool(edge_mode)
+        else:
+            self.edge_mode = bool(CLI_CONFIG["agent"].get("edge_mode", False))
+        if local_context_budget is not None:
+            try:
+                self.local_context_budget = int(local_context_budget)
+            except (TypeError, ValueError):
+                self.local_context_budget = 4000
+        else:
+            try:
+                self.local_context_budget = int(
+                    CLI_CONFIG["agent"].get("local_context_budget", 4000)
+                )
+            except (TypeError, ValueError):
+                self.local_context_budget = 4000
+
         # Parse and validate toolsets
         self.enabled_toolsets = toolsets
         self.disabled_toolsets = CLI_CONFIG["agent"].get("disabled_toolsets") or []
@@ -4512,6 +4533,8 @@ class HermesCLI:
                 tool_complete_callback=self._on_tool_complete if self._inline_diffs_enabled else None,
                 stream_delta_callback=self._stream_delta if self.streaming_enabled else None,
                 tool_gen_callback=self._on_tool_gen_start if self.streaming_enabled else None,
+                edge_mode=self.edge_mode,
+                local_context_budget=self.local_context_budget,
             )
             # Store reference for atexit memory provider shutdown
             global _active_agent_ref
@@ -8206,6 +8229,8 @@ class HermesCLI:
                     provider_data_collection=self._provider_data_collection,
                     openrouter_min_coding_score=self._openrouter_min_coding_score,
                     fallback_model=self._fallback_model,
+                    edge_mode=self.edge_mode,
+                    local_context_budget=self.local_context_budget,
                 )
                 # Silence raw spinner; route thinking through TUI widget when no foreground agent is active.
                 bg_agent._print_fn = lambda *_a, **_kw: None
@@ -13951,6 +13976,8 @@ def main(
     pass_session_id: bool = False,
     ignore_user_config: bool = False,
     ignore_rules: bool = False,
+    edge_mode: Optional[bool] = None,
+    local_context_budget: Optional[int] = None,
 ):
     """
     Hermes Agent CLI - Interactive AI Assistant
@@ -14070,6 +14097,8 @@ def main(
         checkpoints=checkpoints,
         pass_session_id=pass_session_id,
         ignore_rules=ignore_rules,
+        edge_mode=edge_mode,
+        local_context_budget=local_context_budget,
     )
 
     if parsed_skills:

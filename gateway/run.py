@@ -10634,6 +10634,11 @@ class GatewayRunner:
             enabled_toolsets = sorted(_get_platform_tools(user_config, platform_key))
             agent_cfg = user_config.get("agent") or {}
             disabled_toolsets = agent_cfg.get("disabled_toolsets") or None
+            _bg_edge_mode = bool(agent_cfg.get("edge_mode", False))
+            try:
+                _bg_local_budget = int(agent_cfg.get("local_context_budget", 4000))
+            except (TypeError, ValueError):
+                _bg_local_budget = 4000
 
             pr = self._provider_routing
             max_iterations = int(os.getenv("HERMES_MAX_ITERATIONS", "90"))
@@ -10687,6 +10692,8 @@ class GatewayRunner:
                     thread_id=source.thread_id,
                     session_db=self._session_db,
                     fallback_model=self._fallback_model,
+                    edge_mode=_bg_edge_mode,
+                    local_context_budget=_bg_local_budget,
                 )
                 try:
                     return agent.run_conversation(
@@ -13792,6 +13799,8 @@ class GatewayRunner:
         ("compression", "target_ratio"),
         ("compression", "protect_last_n"),
         ("agent", "disabled_toolsets"),
+        ("agent", "edge_mode"),
+        ("agent", "local_context_budget"),
     )
 
     @classmethod
@@ -14597,6 +14606,11 @@ class GatewayRunner:
         enabled_toolsets = sorted(_get_platform_tools(user_config, platform_key))
         agent_cfg_local = user_config.get("agent") or {}
         disabled_toolsets = agent_cfg_local.get("disabled_toolsets") or None
+        _gw_edge_mode = bool(agent_cfg_local.get("edge_mode", False))
+        try:
+            _gw_local_budget = int(agent_cfg_local.get("local_context_budget", 4000))
+        except (TypeError, ValueError):
+            _gw_local_budget = 4000
 
         display_config = user_config.get("display", {})
         if not isinstance(display_config, dict):
@@ -15321,6 +15335,8 @@ class GatewayRunner:
                     gateway_session_key=session_key,
                     session_db=self._session_db,
                     fallback_model=self._fallback_model,
+                    edge_mode=_gw_edge_mode,
+                    local_context_budget=_gw_local_budget,
                 )
                 if _cache_lock and _cache is not None:
                     with _cache_lock:

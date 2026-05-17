@@ -1849,3 +1849,26 @@ class TestTruncateToolCallArgsJson:
         parsed = _json.loads(shrunk)
         assert parsed["path"] == "~/.hermes/skills/shopping/browser-setup-notes.md"
         assert parsed["content"].endswith("...[truncated]")
+
+
+class TestEdgeModeCompressionThreshold:
+    def test_edge_mode_overrides_threshold_tokens(self):
+        with patch("agent.context_compressor.get_model_context_length", return_value=100000):
+            c = ContextCompressor(
+                model="test/model",
+                threshold_percent=0.85,
+                quiet_mode=True,
+                edge_mode=True,
+                edge_context_budget_tokens=4000,
+            )
+        assert c.threshold_tokens == 4000
+
+    def test_edge_mode_false_uses_percent_floor(self):
+        with patch("agent.context_compressor.get_model_context_length", return_value=100000):
+            c = ContextCompressor(
+                model="test/model",
+                threshold_percent=0.50,
+                quiet_mode=True,
+                edge_mode=False,
+            )
+        assert c.threshold_tokens >= 64000  # MINIMUM_CONTEXT_LENGTH floor at 50% of 100k

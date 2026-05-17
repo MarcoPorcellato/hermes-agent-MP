@@ -481,6 +481,22 @@ class ContextCompressor(ContextEngine):
         self._ineffective_compression_count = 0
         self._summary_failure_cooldown_until = 0.0  # transient errors must not block a fresh session
 
+    def _set_threshold_from_context(self) -> None:
+        """Compute ``threshold_tokens`` and derived budgets from ``context_length``."""
+        if getattr(self, "_edge_mode", False):
+            cap = max(256, int(getattr(self, "_edge_context_budget_tokens", 4000)))
+            self.threshold_tokens = min(cap, max(1, int(self.context_length)))
+        else:
+            self.threshold_tokens = max(
+                int(self.context_length * self.threshold_percent),
+                MINIMUM_CONTEXT_LENGTH,
+            )
+        target_tokens = int(self.threshold_tokens * self.summary_target_ratio)
+        self.tail_token_budget = target_tokens
+        self.max_summary_tokens = min(
+            int(self.context_length * 0.05), _SUMMARY_TOKENS_CEILING,
+        )
+
     def update_model(
         self,
         model: str,
@@ -497,17 +513,7 @@ class ContextCompressor(ContextEngine):
         self.provider = provider
         self.api_mode = api_mode
         self.context_length = context_length
-        self.threshold_tokens = max(
-            int(context_length * self.threshold_percent),
-            MINIMUM_CONTEXT_LENGTH,
-        )
-        # Recalculate token budgets for the new context length so the
-        # compressor stays calibrated after a model switch (e.g. 200K → 32K).
-        target_tokens = int(self.threshold_tokens * self.summary_target_ratio)
-        self.tail_token_budget = target_tokens
-        self.max_summary_tokens = min(
-            int(context_length * 0.05), _SUMMARY_TOKENS_CEILING,
-        )
+        self._set_threshold_from_context()
 
     def __init__(
         self,
@@ -523,6 +529,8 @@ class ContextCompressor(ContextEngine):
         config_context_length: int | None = None,
         provider: str = "",
         api_mode: str = "",
+        edge_mode: bool = False,
+        edge_context_budget_tokens: int = 4000,
     ):
         self.model = model
         self.base_url = base_url
@@ -534,38 +542,28 @@ class ContextCompressor(ContextEngine):
         self.protect_last_n = protect_last_n
         self.summary_target_ratio = max(0.10, min(summary_target_ratio, 0.80))
         self.quiet_mode = quiet_mode
+        self._edge_mode = bool(edge_mode)
+        self._edge_context_budget_tokens = int(edge_context_budget_tokens)
 
         self.context_length = get_model_context_length(
             model, base_url=base_url, api_key=api_key,
             config_context_length=config_context_length,
             provider=provider,
         )
-        # Floor: never compress below MINIMUM_CONTEXT_LENGTH tokens even if
-        # the percentage would suggest a lower value.  This prevents premature
-        # compression on large-context models at 50% while keeping the % sane
-        # for models right at the minimum.
-        self.threshold_tokens = max(
-            int(self.context_length * threshold_percent),
-            MINIMUM_CONTEXT_LENGTH,
-        )
+        self._set_threshold_from_context()
         self.compression_count = 0
 
-        # Derive token budgets: ratio is relative to the threshold, not total context
-        target_tokens = int(self.threshold_tokens * self.summary_target_ratio)
-        self.tail_token_budget = target_tokens
-        self.max_summary_tokens = min(
-            int(self.context_length * 0.05), _SUMMARY_TOKENS_CEILING,
-        )
-
         if not quiet_mode:
+            _edge_note = " edge_mode=True" if self._edge_mode else ""
             logger.info(
                 "Context compressor initialized: model=%s context_length=%d "
                 "threshold=%d (%.0f%%) target_ratio=%.0f%% tail_budget=%d "
-                "provider=%s base_url=%s",
+                "provider=%s base_url=%s%s",
                 model, self.context_length, self.threshold_tokens,
                 threshold_percent * 100, self.summary_target_ratio * 100,
                 self.tail_token_budget,
                 provider or "none", base_url or "none",
+                _edge_note,
             )
         self._context_probed = False  # True after a step-down from context error
 

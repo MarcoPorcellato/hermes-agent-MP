@@ -187,6 +187,38 @@ scripts/run_tests.sh
 
 ---
 
+## Edge-Native mode (local SLM optimization)
+
+Hermes includes an optional, non-breaking **edge-native mode** aimed at small local models (for example Qwen via Ollama) on consumer CPUs: it reduces pathological pre-fill cost and runaway context growth from very large tool outputs, without changing default cloud behaviour when the mode is off.
+
+### Behaviour
+
+- **Context budgeting:** When edge mode is on, compression uses a fixed token floor (default `4000`) instead of waiting for a large fraction of a cloud-sized context window, so summarisation runs earlier on small contexts.
+- **Head–tail tool truncation:** Long **string** tool results are truncated to a head/tail window before they are appended to the live model transcript. Full payloads remain in the session database for debugging and replay.
+
+### Configuration
+
+In `~/.hermes/config.yaml` (or the `agent:` section of your active profile):
+
+```yaml
+agent:
+  edge_mode: true
+  local_context_budget: 4000
+```
+
+### CLI overrides
+
+Flags apply to `hermes chat`, `hermes -z` (oneshot), and TUI launches that forward them into the subprocess:
+
+```bash
+hermes chat --edge-mode --local-context-budget 6000
+hermes -z "Analyze my local repo" --edge-mode
+```
+
+Gateway, cron, and delegated subagents read the same `agent.*` settings so behaviour stays consistent across entry points.
+
+---
+
 ## License
 
 MIT — see [LICENSE](LICENSE).

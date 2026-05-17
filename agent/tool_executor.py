@@ -54,6 +54,29 @@ logger = logging.getLogger(__name__)
 # Mirrors the constant in ``run_agent`` for tests/imports that look here.
 _MAX_TOOL_WORKERS = 8
 
+# Edge mode: head/tail truncation for string tool results (characters, not tokens).
+_EDGE_TRUNC_LEN_TRIGGER = 4000
+_EDGE_TRUNC_HEAD = 2000
+_EDGE_TRUNC_TAIL = 1500
+_EDGE_TRUNC_MARKER = (
+    "\n\n[... TRUNCATED BY EDGE-MODE TO PROTECT LOCAL CPU KV-CACHE ...]\n\n"
+)
+
+
+def _edge_mode_truncate_string_tool_result(agent: Any, function_result: Any) -> Any:
+    """Shrink huge string tool payloads before they enter live ``messages``."""
+    if not getattr(agent, "edge_mode", False):
+        return function_result
+    if _is_multimodal_tool_result(function_result):
+        return function_result
+    if not isinstance(function_result, str):
+        return function_result
+    if len(function_result) <= _EDGE_TRUNC_LEN_TRIGGER:
+        return function_result
+    head = function_result[:_EDGE_TRUNC_HEAD]
+    tail = function_result[-_EDGE_TRUNC_TAIL:]
+    return head + _EDGE_TRUNC_MARKER + tail
+
 
 def _ra():
     """Lazy reference to ``run_agent`` so patches like ``run_agent._set_interrupt`` work."""
@@ -424,6 +447,8 @@ def execute_tool_calls_concurrent(agent, assistant_message, messages: list, effe
             tool_use_id=tc.id,
             env=get_active_env(effective_task_id),
         ) if not _is_multimodal_tool_result(function_result) else function_result
+
+        function_result = _edge_mode_truncate_string_tool_result(agent, function_result)
 
         subdir_hints = agent._subdirectory_hints.check_tool_call(name, args)
         if subdir_hints:
@@ -848,6 +873,8 @@ def execute_tool_calls_sequential(agent, assistant_message, messages: list, effe
             tool_use_id=tool_call.id,
             env=get_active_env(effective_task_id),
         ) if not _is_multimodal_tool_result(function_result) else function_result
+
+        function_result = _edge_mode_truncate_string_tool_result(agent, function_result)
 
         # Discover subdirectory context files from tool arguments
         subdir_hints = agent._subdirectory_hints.check_tool_call(function_name, function_args)

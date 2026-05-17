@@ -212,6 +212,21 @@ def build_top_level_parser():
     )
     _inherited_flag(
         parser,
+        "--edge-mode",
+        action="store_true",
+        default=argparse.SUPPRESS,
+        help="Enable edge-native optimizations for local SLMs (truncation + early context compression)",
+    )
+    _inherited_flag(
+        parser,
+        "--local-context-budget",
+        type=int,
+        default=argparse.SUPPRESS,
+        metavar="N",
+        help="Token budget floor for compression when edge mode is active (default: 4000, or agent.local_context_budget in config)",
+    )
+    _inherited_flag(
+        parser,
         "--tui",
         action="store_true",
         default=False,
@@ -244,7 +259,9 @@ def build_top_level_parser():
     )
     _inherited_flag(
         chat_parser,
-        "-m", "--model", help="Model to use (e.g., anthropic/claude-sonnet-4)",
+        "-m",
+        "--model",
+        help="Model to use (e.g., anthropic/claude-sonnet-4)",
     )
     chat_parser.add_argument(
         "-t", "--toolsets", help="Comma-separated toolsets to enable"
@@ -351,6 +368,21 @@ def build_top_level_parser():
         action="store_true",
         default=argparse.SUPPRESS,
         help="Skip auto-injection of AGENTS.md, SOUL.md, .cursorrules, memory, and preloaded skills. Combine with --ignore-user-config for a fully isolated run.",
+    )
+    _inherited_flag(
+        chat_parser,
+        "--edge-mode",
+        action="store_true",
+        default=argparse.SUPPRESS,
+        help="Enable edge-native optimizations for local SLMs (truncation + early context compression)",
+    )
+    _inherited_flag(
+        chat_parser,
+        "--local-context-budget",
+        type=int,
+        default=argparse.SUPPRESS,
+        metavar="N",
+        help="Token budget floor for compression when edge mode is active (default: 4000, or agent.local_context_budget in config)",
     )
     chat_parser.add_argument(
         "--source",

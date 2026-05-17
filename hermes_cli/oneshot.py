@@ -47,7 +47,9 @@ def _normalize_toolsets(toolsets: object = None) -> list[str] | None:
     return [item for item in normalized if item] or None
 
 
-def _validate_explicit_toolsets(toolsets: object = None) -> tuple[list[str] | None, str | None]:
+def _validate_explicit_toolsets(
+    toolsets: object = None,
+) -> tuple[list[str] | None, str | None]:
     normalized = _normalize_toolsets(toolsets)
     if normalized is None:
         return None, None
@@ -90,7 +92,11 @@ def _validate_explicit_toolsets(toolsets: object = None) -> tuple[list[str] | No
             from hermes_cli.tools_config import _parse_enabled_flag
 
             cfg = read_raw_config()
-            mcp_servers = cfg.get("mcp_servers") if isinstance(cfg.get("mcp_servers"), dict) else {}
+            mcp_servers = (
+                cfg.get("mcp_servers")
+                if isinstance(cfg.get("mcp_servers"), dict)
+                else {}
+            )
             for name, server_cfg in mcp_servers.items():
                 if not isinstance(server_cfg, dict):
                     continue
@@ -104,11 +110,17 @@ def _validate_explicit_toolsets(toolsets: object = None) -> tuple[list[str] | No
 
     mcp_valid = [name for name in unresolved if name in mcp_names]
     disabled = [name for name in unresolved if name in mcp_disabled]
-    unknown = [name for name in unresolved if name not in mcp_names and name not in mcp_disabled]
+    unknown = [
+        name
+        for name in unresolved
+        if name not in mcp_names and name not in mcp_disabled
+    ]
     valid = built_in + mcp_valid
 
     if unknown:
-        sys.stderr.write(f"hermes -z: ignoring unknown --toolsets entries: {', '.join(unknown)}\n")
+        sys.stderr.write(
+            f"hermes -z: ignoring unknown --toolsets entries: {', '.join(unknown)}\n"
+        )
     if disabled:
         sys.stderr.write(
             "hermes -z: ignoring disabled MCP servers (set enabled: true in config.yaml to use): "
@@ -126,6 +138,8 @@ def run_oneshot(
     model: Optional[str] = None,
     provider: Optional[str] = None,
     toolsets: object = None,
+    edge_mode: Optional[bool] = None,
+    local_context_budget: Optional[int] = None,
 ) -> int:
     """Execute a single prompt and print only the final content block.
 
@@ -184,6 +198,8 @@ def run_oneshot(
                 provider=provider,
                 toolsets=explicit_toolsets,
                 use_config_toolsets=use_config_toolsets,
+                edge_mode=edge_mode,
+                local_context_budget=local_context_budget,
             )
     finally:
         try:
@@ -221,6 +237,8 @@ def _run_agent(
     provider: Optional[str] = None,
     toolsets: object = None,
     use_config_toolsets: bool = True,
+    edge_mode: Optional[bool] = None,
+    local_context_budget: Optional[int] = None,
 ) -> str:
     """Build an AIAgent exactly like a normal CLI chat turn would, then
     run a single conversation.  Returns the final response string."""
@@ -233,6 +251,23 @@ def _run_agent(
     from run_agent import AIAgent
 
     cfg = load_config()
+
+    agent_cfg = cfg.get("agent") if isinstance(cfg.get("agent"), dict) else {}
+    _edge = (
+        bool(edge_mode)
+        if edge_mode is not None
+        else bool(agent_cfg.get("edge_mode", False))
+    )
+    if local_context_budget is not None:
+        try:
+            _local_budget = int(local_context_budget)
+        except (TypeError, ValueError):
+            _local_budget = 4000
+    else:
+        try:
+            _local_budget = int(agent_cfg.get("local_context_budget", 4000))
+        except (TypeError, ValueError):
+            _local_budget = 4000
 
     # Resolve effective model: explicit arg → env var → config.
     model_cfg = cfg.get("model") or {}
@@ -265,6 +300,7 @@ def _run_agent(
             # endpoints not in any catalog (local servers, custom proxies, etc.).
             try:
                 from hermes_cli import model_switch as _ms
+
                 _ms._ensure_direct_aliases()
                 direct = _ms.DIRECT_ALIASES.get(explicit_model.strip().lower())
             except Exception:
@@ -325,6 +361,8 @@ def _run_agent(
         #   - dangerous-command approval → bypassed via HERMES_YOLO_MODE=1
         #   - skill secret capture → returns gracefully when no callback set
         clarify_callback=_oneshot_clarify_callback,
+        edge_mode=_edge,
+        local_context_budget=_local_budget,
     )
 
     # Belt-and-braces: make sure AIAgent doesn't invoke any streaming

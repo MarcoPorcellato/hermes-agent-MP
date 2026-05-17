@@ -137,6 +137,8 @@ def init_agent(
     checkpoint_max_total_size_mb: int = 500,
     checkpoint_max_file_size_mb: int = 10,
     pass_session_id: bool = False,
+    edge_mode: bool | None = None,
+    local_context_budget: int | None = None,
 ):
     """
     Initialize the AI Agent.
@@ -1053,6 +1055,21 @@ def init_agent(
         _agent_section = {}
     agent._tool_use_enforcement = _agent_section.get("tool_use_enforcement", "auto")
 
+    if edge_mode is not None:
+        agent.edge_mode = bool(edge_mode)
+    else:
+        agent.edge_mode = bool(_agent_section.get("edge_mode", False))
+    if local_context_budget is not None:
+        try:
+            agent.local_context_budget = int(local_context_budget)
+        except (TypeError, ValueError):
+            agent.local_context_budget = 4000
+    else:
+        try:
+            agent.local_context_budget = int(_agent_section.get("local_context_budget", 4000))
+        except (TypeError, ValueError):
+            agent.local_context_budget = 4000
+
     # App-level API retry count (wraps each model API call).  Default 3,
     # overridable via agent.api_max_retries in config.yaml.  See #11616.
     try:
@@ -1303,6 +1320,8 @@ def init_agent(
             config_context_length=_config_context_length,
             provider=agent.provider,
             api_mode=agent.api_mode,
+            edge_mode=getattr(agent, "edge_mode", False),
+            edge_context_budget_tokens=getattr(agent, "local_context_budget", 4000),
         )
     agent.compression_enabled = compression_enabled
 

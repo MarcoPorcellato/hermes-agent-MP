@@ -1188,6 +1188,8 @@ def _launch_tui(
     pass_session_id: bool = False,
     max_turns: Optional[int] = None,
     accept_hooks: bool = False,
+    edge_mode: Optional[bool] = None,
+    local_context_budget: Optional[int] = None,
 ):
     """Replace current process with the TUI."""
     tui_dir = PROJECT_ROOT / "ui-tui"
@@ -1261,6 +1263,10 @@ def _launch_tui(
         env["HERMES_TUI_PASS_SESSION_ID"] = "1"
     if max_turns is not None:
         env["HERMES_TUI_MAX_TURNS"] = str(max_turns)
+    if edge_mode:
+        env["HERMES_TUI_EDGE_MODE"] = "1"
+    if local_context_budget is not None:
+        env["HERMES_TUI_LOCAL_CONTEXT_BUDGET"] = str(local_context_budget)
     if verbose:
         env["HERMES_TUI_TOOL_PROGRESS"] = "verbose"
     elif quiet:
@@ -1453,6 +1459,8 @@ def cmd_chat(args):
             pass_session_id=getattr(args, "pass_session_id", False),
             max_turns=getattr(args, "max_turns", None),
             accept_hooks=getattr(args, "accept_hooks", False),
+            edge_mode=getattr(args, "edge_mode", None),
+            local_context_budget=getattr(args, "local_context_budget", None),
         )
 
     # Import and run the CLI
@@ -1476,6 +1484,10 @@ def cmd_chat(args):
         "ignore_rules": getattr(args, "ignore_rules", False),
         "ignore_user_config": getattr(args, "ignore_user_config", False),
     }
+    if hasattr(args, "edge_mode"):
+        kwargs["edge_mode"] = bool(args.edge_mode)
+    if hasattr(args, "local_context_budget"):
+        kwargs["local_context_budget"] = args.local_context_budget
     # Filter out None values
     kwargs = {k: v for k, v in kwargs.items() if v is not None}
 
@@ -12394,6 +12406,8 @@ Examples:
                 model=getattr(args, "model", None),
                 provider=getattr(args, "provider", None),
                 toolsets=getattr(args, "toolsets", None),
+                edge_mode=getattr(args, "edge_mode", None),
+                local_context_budget=getattr(args, "local_context_budget", None),
             )
         )
 

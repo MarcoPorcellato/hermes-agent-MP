@@ -1,0 +1,66 @@
+# ==========================================
+# REPOMIXIGNORE ULTRA-RESTRICTIVE (EDGE PR)
+# ==========================================
+
+# 1. ESCLUSIONE TOTALE DEL FRONTEND / WEBUI (Il colpevole dei 5M di token)
+webui/
+frontend/
+ui/
+static/
+public/
+node_modules/
+.next/
+out/
+package-lock.json
+yarn.lock
+pnpm-lock.yaml
+
+# 2. ESCLUSIONE DI TEST, DOCUMENTAZIONE E BENCHMARK
+tests/
+examples/
+docs/
+benchmarks/
+evals/
+site/
+scripts/
+*.md
+*.txt
+
+# 3. ESCLUSIONE DI SKILL E DATI (Non ci servono per modificare il motore dell'agente)
+skills/
+optional-skills/
+plugins/
+*.json
+*.csv
+*.tsv
+*.parquet
+
+# 4. FILE DI SISTEMA, DATABASE E CACHE LOCALi
+.git/
+.github/
+.cursor/
+.vscode/
+.idea/
+.env
+.env.*
+*.log
+*.db
+*.sqlite
+hermes_state.db
+
+# 5. ARTEFATTI PYTHON E VIRTUAL ENVIRONMENTS
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.venv/
+venv/
+env/
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+.coverage
+htmlcov/
+build/
+dist/
+*.egg-info/
