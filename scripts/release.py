@@ -1150,6 +1150,7 @@ AUTHOR_MAP = {
     "alaamohanad169-ship-it@users.noreply.github.com": "alaamohanad169-ship-it",  # PR #26036 (telegram typing after send)
     "vigo@hermes": "hawknewton",  # PR #26294 (bedrock boto3 lazy_deps)
     "211668+hawknewton@users.noreply.github.com": "hawknewton",
+    "marcoporcellato@gmail.com": "MarcoPorcellato",
 }
 
 
